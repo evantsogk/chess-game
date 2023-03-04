@@ -1,0 +1,231 @@
+import chess
+import chess.pgn
+import random
+import math
+import time
+from typing import Optional, Tuple
+
+
+class HumanPlayer:
+    """Represents the human player.
+
+    Attributes:
+        name (str): The name of the player.
+        color (bool): The color of the player's pieces (True for white, False for black).
+    """
+    def __init__(self, name: str, color: bool):
+        self.name = name
+        self.color = color
+
+    @staticmethod
+    def make_move(board: chess.Board, move) -> str:
+        """Makes a move on the given chess board.
+
+        Args:
+            board (chess.Board): The current chess board state.
+            move (str): The move to make in UCI format.
+
+        Returns:
+            str: The FEN string representation of the board after the move, or an empty string if the move is illegal.
+        """
+        if chess.Move.from_uci(move) in list(board.legal_moves):
+            board.push_uci(move)
+            return board.fen()
+        # check for pawn promotion to queen
+        elif chess.Move.from_uci(move + 'q') in list(board.legal_moves):
+            board.push_uci(move + 'q')
+            return board.fen()
+        else:
+            return ''
+
+
+class MiniMaxPlayer:
+    """Represents an AI player that uses the MiniMax algorithm with Alpha-Beta pruning and iterative deepening.
+    The material values and piece-square tables are based on the simplified evaluation function from
+    https://www.chessprogramming.org/Simplified_Evaluation_Function.
+
+    Attributes:
+        name (str): The name of the player.
+        color (bool): The color of the player's pieces (True for white, False for black).
+        max_depth (int): The maximum search depth for the MiniMax algorithm.
+        max_time (int): The maximum search time for the MiniMax algorithm (in seconds).
+    """
+    PIECE_VALUES = {
+        'P': [100, [[0, 0, 0, 0, 0, 0, 0, 0], [50, 50, 50, 50, 50, 50, 50, 50], [10, 10, 20, 30, 30, 20, 10, 10],
+                    [5, 5, 10, 25, 25, 10, 5, 5], [0, 0, 0, 20, 20, 0, 0, 0], [5, -5, -10, 0, 0, -10, -5, 5],
+                    [5, 10, 10, -20, -20, 10, 10, 5], [0, 0, 0, 0, 0, 0, 0, 0]]],
+        'N': [320, [[-50, -40, -30, -30, -30, -30, -40, -50], [-40, -20, 0, 0, 0, 0, -20, -40],
+                    [-30, 0, 10, 15, 15, 10, 0, -30], [-30, 5, 15, 20, 20, 15, 5, -30],
+                    [-30, 0, 15, 20, 20, 15, 0, -30], [-30, 5, 10, 15, 15, 10, 5, -30],
+                    [-40, -20, 0, 5, 5, 0, -20, -40], [-50, -40, -30, -30, -30, -30, -40, -50]]],
+        'B': [330,
+              [[-20, -10, -10, -10, -10, -10, -10, -20], [-10, 0, 0, 0, 0, 0, 0, -10], [-10, 0, 5, 10, 10, 5, 0, -10],
+               [-10, 5, 5, 10, 10, 5, 5, -10], [-10, 0, 10, 10, 10, 10, 0, -10], [-10, 10, 10, 10, 10, 10, 10, -10],
+               [-10, 5, 0, 0, 0, 0, 5, -10], [-20, -10, -10, -10, -10, -10, -10, -20]]],
+        'R': [500, [[0, 0, 0, 0, 0, 0, 0, 0], [5, 10, 10, 10, 10, 10, 10, 5], [-5, 0, 0, 0, 0, 0, 0, -5],
+                    [-5, 0, 0, 0, 0, 0, 0, -5], [-5, 0, 0, 0, 0, 0, 0, -5], [-5, 0, 0, 0, 0, 0, 0, -5],
+                    [-5, 0, 0, 0, 0, 0, 0, -5], [0, 0, 0, 5, 5, 0, 0, 0]]],
+        'Q': [900, [[-20, -10, -10, -5, -5, -10, -10, -20], [-10, 0, 0, 0, 0, 0, 0, -10], [-10, 0, 5, 5, 5, 5, 0, -10],
+                    [-5, 0, 5, 5, 5, 5, 0, -5], [0, 0, 5, 5, 5, 5, 0, -5], [-10, 5, 5, 5, 5, 5, 0, -10],
+                    [-10, 0, 5, 0, 0, 0, 0, -10], [-20, -10, -10, -5, -5, -10, -10, -20]]],
+        'K': [0, [[-30, -40, -40, -50, -50, -40, -40, -30], [-30, -40, -40, -50, -50, -40, -40, -30],
+                  [-30, -40, -40, -50, -50, -40, -40, -30], [-30, -40, -40, -50, -50, -40, -40, -30],
+                  [-20, -30, -30, -40, -40, -30, -30, -20], [-10, -20, -20, -20, -20, -20, -20, -10],
+                  [20, 20, 0, 0, 0, 0, 20, 20], [20, 30, 10, 0, 0, 10, 30, 20]]]
+    }
+
+    def __init__(self, name: str, color: bool, max_depth: int, max_time: int):
+        self.name = name
+        self.color = color
+        self.max_depth = max_depth
+        self.max_time = max_time
+
+    def make_move(self, board: chess.Board) -> str:
+        """Makes the best move found by the MiniMax algorithm, increasing the search depth iteratively until the
+        maximum search depth or time is reached.
+
+        Args:
+            board (chess.Board): The current chess board state.
+
+        Returns:
+            str: The FEN string representation of the board after the move.
+        """
+        start_time = time.time()
+        best_move = None
+        for depth in range(1, self.max_depth + 1):
+            move, score = self.minimax(board.copy(), depth, -math.inf, math.inf, True, start_time)
+            if time.time() - start_time >= self.max_time:
+                break
+            best_move = move
+        board.push(best_move)
+        return board.fen()
+
+    def minimax(self, board: chess.Board, depth: int, alpha: float, beta: float, maximizing_player: bool,
+                start_time: float) -> Tuple[Optional[chess.Move], float]:
+        """The MiniMax algorithm recursively searches for the best move by exploring the game tree up to the
+        specified depth. The search is pruned using Alpha-Beta pruning and stops if it reaches the maximum time.
+
+        Args:
+            board (chess.Board): The current chess board state.
+            depth (int): The current search depth.
+            alpha (float): The current value of the alpha cutoff parameter for Alpha-Beta pruning.
+            beta (float): The current value of the beta cutoff parameter for Alpha-Beta pruning.
+            maximizing_player (bool): True if the current player is maximizing, False if it is minimizing.
+            start_time (float): The starting time of the search for the best move.
+
+        Returns:
+            Tuple[Optional[chess.Move], float]: A tuple containing the best move found by the algorithm
+            and its corresponding score. If the maximum search time has been exceeded, the best move found
+            so far and its corresponding score up to that point are returned.
+        """
+        if depth == 0 or board.is_game_over():
+            return None, self.evaluate_board(board)
+
+        best_move = None
+        best_score = -math.inf if maximizing_player else math.inf
+        for move in board.legal_moves:
+            board.push(move)
+            _, score = self.minimax(board, depth - 1, alpha, beta, not maximizing_player, start_time)
+            board.pop()
+            if maximizing_player and score > best_score:
+                best_move = move
+                alpha = best_score = score
+            elif not maximizing_player and score < best_score:
+                best_move = move
+                beta = best_score = score
+            if beta <= alpha:
+                break
+
+            if time.time() - start_time >= self.max_time:
+                return best_move, best_score
+
+        return best_move, best_score
+
+    def evaluate_board(self, board: chess.Board) -> int:
+        """Evaluates the given chess board based on the material values of the pieces as well as their position on the board.
+
+        Args:
+            board (chess.Board): The chess board to evaluate.
+
+        Returns:
+            int: A numeric score representing the advantage of the current player.
+        """
+        if board.is_game_over():
+            if board.is_checkmate():
+                return 100000 if board.outcome().winner == self.color else -100000
+            else:
+                return 0
+
+        value = 0
+        for square, piece in board.piece_map().items():
+            piece_symbol = str(piece).upper()
+            row_lookup = [chess.square_rank(square), 7 - chess.square_rank(square)]
+            col_lookup = chess.square_file(square)
+
+            if piece.color == self.color:
+                value += self.PIECE_VALUES[piece_symbol][0] + \
+                         self.PIECE_VALUES[piece_symbol][1][row_lookup[self.color]][col_lookup]
+            else:
+                value -= self.PIECE_VALUES[piece_symbol][0] - \
+                         self.PIECE_VALUES[piece_symbol][1][row_lookup[1 - self.color]][col_lookup]
+
+        return value
+
+
+class ChessGame:
+    """Represents a game of chess between a human player and a computer player that uses the MiniMax algorithm.
+
+    Args:
+        chosen_color (str): The color of the human player's pieces ("white", "black" or "random").
+        max_depth (int): The maximum search depth for the MiniMax algorithm.
+        max_time (int): The maximum search time for the MiniMax algorithm (in seconds).
+
+    Attributes:
+        board (chess.Board): The chess board.
+        color (bool): The color of the human player's pieces (True for white, False for black).
+        color_str (str): The color of the human player's pieces (either "white" or "black").
+        player1 (HumanPlayer): The human player.
+        player2 (MiniMaxPlayer): The MiniMax player.
+    """
+    def __init__(self, chosen_color: str, max_depth: int, max_time: int):
+        self.board = chess.Board()
+        if chosen_color == "random":
+            self.color = random.choice([chess.WHITE, chess.BLACK])
+            self.color_str = "white" if self.color else "black"
+        else:
+            self.color = (chosen_color == "white")
+            self.color_str = chosen_color
+        self.player1 = HumanPlayer("HumanPlayer", self.color)
+        self.player2 = MiniMaxPlayer("MiniMaxPlayer", not self.color, max_depth, max_time)
+
+    def get_pgn(self) -> str:
+        """Returns the Portable Game Notation (PGN) representation of the current game.
+
+        Returns:
+            str: A string representing the current game in PGN format.
+        """
+        game = chess.pgn.Game.from_board(self.board)
+        pgn_string = game.accept(chess.pgn.StringExporter(headers=False))
+        return pgn_string
+
+    def get_result(self) -> str:
+        """Returns the result of the current game.
+
+        Returns:
+            str: A message indicating the result of the current game.
+        """
+        msg = "DRAW"
+        result = ""
+        if self.board.is_checkmate():
+            msg = "YOU WON!" if self.board.outcome().winner == self.player1.color else "GAME OVER"
+            result = "by checkmate"
+        elif self.board.is_stalemate():
+            result = "by stalemate"
+        elif self.board.is_insufficient_material():
+            result = "by insufficient material"
+        elif self.board.is_seventyfive_moves():
+            result = "by the 75 moves rule"
+        elif self.board.is_fivefold_repetition():
+            result = "by the 5-fold repetition rule"
+
+        return msg + "\n\n" + result

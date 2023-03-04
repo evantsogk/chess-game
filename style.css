@@ -1,0 +1,159 @@
+body {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 95vh;
+	background-color: #333333;
+	color: #d9d9d9;
+}	
+	
+#base-layout {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+#board {
+	width: 600px;
+}
+
+#right-section {
+	width: 300px; 
+	margin-left: 50px;
+}
+
+#description {
+	text-align: center;
+	margin-bottom: 50px; 
+	font-size: 26px;  
+	color: #f2f2f2;
+}
+
+#pgn {
+	height: 200px; 
+	overflow: auto; 
+	margin-bottom: 50px; 
+	padding: 5px;
+	border: 3px solid gray;  
+	border-style: inset; 
+	border-width: 3px; 	
+}
+
+#difficulty-container > span, #color-container > span {
+	margin-right: 20px;
+}
+
+#difficulty-container {
+	display: flex; 
+	align-items: center; 
+	justify-content: center;
+	margin-bottom: 30px;
+}
+
+#color-container {
+	display: flex; 
+	align-items: center; 
+	justify-content: center;
+}
+
+input[type="radio"] {
+	display: none;
+} 
+
+input[type="radio"][name="difficulty"]:checked + span {
+	color: #b48b69;
+}
+
+input[type="radio"][name="color"]:checked + span {
+	box-shadow: 0 0 0 2px #b48b69;
+}	
+
+#difficulty-container > label > span { 
+	margin-right: 20px;  
+}
+		
+#color-container > label > span {
+	display: inline-block; 
+	width: 30px; 
+	height: 30px; 
+	margin-right: 20px;  
+	border-radius: 4px;
+}
+
+#color-white {
+	background-color: white;
+}
+
+#color-random {
+	background: linear-gradient(to right, white 50%, black 50%);
+}
+
+#color-black {
+	background-color: black;
+}
+
+#btn-container{
+	display: flex; 
+	justify-content: center; 
+	margin-top: 45px;
+}
+
+#startBtn {
+	width: 100%; 
+	box-sizing: border-box; 
+	border: none;
+	border-radius: 10px; 
+	padding: 20px;
+	font-size: 20px; 
+	font-weight: bold;  	
+	color: white; 	
+	background-color: #806148; 
+	transition: background-color 0.1s;
+}
+
+#startBtn:hover {
+	background-color: #b48b69;
+}
+
+#startBtn:active {
+	background-color: #9d795c;
+}
+
+#game-over-panel {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 300px;
+	height: 150px;
+	background-color: #806148;
+	color: white;
+	border-radius: 5px; 
+	text-align: center;
+	z-index: 9999;
+	box-shadow: 0px 0px 20px rgba(0, 0, 0, 1);
+}
+
+.panel-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	width: 100%;
+}
+
+.panel-message {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 100%;
+}
+
+.close-button {
+	background-color: transparent;
+	border: none;
+	color: white;
+	font-size: 30px;
+	cursor: pointer;
+	margin-left: auto;
+}
