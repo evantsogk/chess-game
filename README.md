@@ -6,4 +6,4 @@ A simple website to play chess against an AI based on the MiniMax algorithm. It 
 
 The AI uses an optimized version of the MiniMax algorithm, which applies the Alpha-Beta pruning technique to reduce the number of the evaluated nodes and, as a result, the search time for the best move. It also uses iterative deepening and stops the search after it reaches the maximum allowed time.
 
-The evaluation function considers material values and piece-board tables found at [](https://www.chessprogramming.org/Simplified_Evaluation_Function).
+The evaluation function considers material values and piece-board tables found at https://www.chessprogramming.org/Simplified_Evaluation_Function.
